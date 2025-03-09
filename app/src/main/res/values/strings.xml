@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">GMS Switcher</string>
+    <string name="title_activity_preferenses_editor">PreferensesEditor</string>
+</resources>
