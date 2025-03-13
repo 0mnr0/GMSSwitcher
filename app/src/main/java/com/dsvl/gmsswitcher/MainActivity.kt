@@ -6,14 +6,13 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
+import android.icu.text.CaseMap
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,17 +37,14 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CardDefaults.shape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -58,19 +54,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.graphics.drawable.toBitmap
 import com.dsvl.gmsswitcher.ui.theme.GMSSwitcherTheme
+import com.google.android.material.appbar.CollapsingToolbarLayout
 
 var context: MainActivity? = null;
 var readyAppList: MutableList<AppInfo>? = null;
@@ -334,44 +329,36 @@ fun Drawable.toBitmap(): Bitmap {
 }
 
 
-
 @Composable
 fun createSettingLine(key: String, title: String, settingValue: Boolean) {
-    // Состояние переключателя
-    val (isChecked, setChecked) = remember { mutableStateOf(settingValue) }
+    var switchState by remember { mutableStateOf(settingValue) }
 
-    // Обернем в Box для внешнего отступа
-    Box(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .padding(16.dp)
+            .padding(8.dp)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.secondaryContainer) // Задаем нужный фон (например, светло-серый)
     ) {
-        Row(
+        Text(
+            text = title,
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .clip(RoundedCornerShape(12.dp))
-                .padding(8.dp)
-                .align(Alignment.CenterStart), // Центрирование по вертикали
-            horizontalArrangement = Arrangement.Center, // Центрирование по горизонтали
-            verticalAlignment = Alignment.CenterVertically // Центрирование по вертикали
-        ) {
-            Text(
-                text = title,
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Switch(
-                checked = isChecked,
-                onCheckedChange = { newValue ->
-                    SettingsChanged = true
-                    setChecked(newValue)
-                    SaveBool(key, newValue)
-                }
-            )
-        }
+                .weight(1f) // Ширина и цвет текста
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .padding(start = 8.dp, end = 8.dp) // отступы внутри текстового элемента
+        )
+        Switch(
+            checked = switchState,
+            onCheckedChange = { newValue ->
+                SettingsChanged = true
+                switchState = newValue
+                SaveBool(key, newValue)
+            },
+            modifier = Modifier.padding(8.dp) // отступы для переключателя
+        )
     }
+
 }
 
 
@@ -380,7 +367,21 @@ fun createSettingLine(key: String, title: String, settingValue: Boolean) {
 @Composable
 fun SettingsScreen() {
 
-    Column {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 16.dp), // Отступ сверху
+        verticalArrangement = Arrangement.Top // Размещает элементы вверху
+    ) {
+        Text(
+            text = "Настройки",
+            style = MaterialTheme.typography.headlineLarge,
+            modifier = Modifier.padding(16.dp, bottom = 12.dp), // Отступ сверху
+            color = MaterialTheme.colorScheme.secondary,
+            fontSize = 36.sp,
+            fontWeight = FontWeight.W600,
+        )
+
         settingsKeys.forEachIndexed { index, key ->
             createSettingLine(key, settingsTitles[index], GetBool(key))
         }
