@@ -1,13 +1,17 @@
 package com.dsvl.gmsswitcher
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.icu.text.CaseMap
 import android.os.Bundle
+import android.view.Gravity
+import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -63,15 +67,24 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityOptionsCompat
+import androidx.core.content.FileProvider
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
+import androidx.transition.Slide
 import com.dsvl.gmsswitcher.ui.theme.GMSSwitcherTheme
 import com.google.android.material.appbar.CollapsingToolbarLayout
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 
 var context: MainActivity? = null;
 var readyAppList: MutableList<AppInfo>? = null;
 val settingsKeys = listOf("ShowSystemApps", "IgnoreDamagedApps")
 val settingsTitles = listOf("Показывать системные приложения", "Игнорировать приложения с неполными данными")
 var SettingsChanged = false
+object DrawableHolder {
+    var icon: Drawable? = null
+}
 
 
 
@@ -110,7 +123,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+
     }
+
+
+
 }
 
 @Composable
@@ -265,7 +283,9 @@ fun DisplayAppList(apps: List<AppInfo>) {
                                     val intent = Intent(context, PreferensesEditor::class.java)
                                     intent.putExtra("AppName", app.name)
                                     intent.putExtra("AppPackage", app.packageName);
-                                    intent.putExtra("AppIcon", app.icon.toBitmap())
+                                    DrawableHolder.icon = app.icon
+
+
                                     val options = ActivityOptionsCompat.makeCustomAnimation(
                                         context, R.anim.slide_in_right, R.anim.slide_out_left
                                     )
@@ -330,7 +350,7 @@ fun Drawable.toBitmap(): Bitmap {
 
 
 @Composable
-fun createSettingLine(key: String, title: String, settingValue: Boolean) {
+fun CreateSettingLine(key: String, title: String, settingValue: Boolean) {
     var switchState by remember { mutableStateOf(settingValue) }
 
     Row(
@@ -383,7 +403,7 @@ fun SettingsScreen() {
         )
 
         settingsKeys.forEachIndexed { index, key ->
-            createSettingLine(key, settingsTitles[index], GetBool(key))
+            CreateSettingLine(key, settingsTitles[index], GetBool(key))
         }
     }
 }
