@@ -1,22 +1,16 @@
 package com.dsvl.gmsswitcher
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.icu.text.CaseMap
 import android.os.Bundle
-import android.view.Gravity
-import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,17 +30,23 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CardDefaults.shape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,7 +58,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -67,15 +66,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityOptionsCompat
-import androidx.core.content.FileProvider
-import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toBitmap
-import androidx.transition.Slide
 import com.dsvl.gmsswitcher.ui.theme.GMSSwitcherTheme
-import com.google.android.material.appbar.CollapsingToolbarLayout
-import java.io.ByteArrayOutputStream
-import java.io.File
-import java.io.FileOutputStream
 
 var context: MainActivity? = null;
 var readyAppList: MutableList<AppInfo>? = null;
@@ -126,9 +119,34 @@ class MainActivity : ComponentActivity() {
 
 
     }
+}
 
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchBarExample() {
+    var query by remember { mutableStateOf("") }
+    var isActive by remember { mutableStateOf(false) }
 
+    SearchBar(
+        query = query,
+        onQueryChange = { query = it },
+        onSearch = { isActive = false },
+        active = isActive,
+        onActiveChange = { isActive = it },
+        placeholder = { Text("Поиск...") },
+        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Поиск") },
+        trailingIcon = {
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { query = "" }) {
+                    Icon(Icons.Default.Close, contentDescription = "Очистить")
+                }
+            }
+        }
+    ) {
+        // Сюда можно добавить результаты поиска
+        Text("Результаты поиска для: $query", modifier = Modifier.padding(16.dp))
+    }
 }
 
 @Composable
@@ -237,6 +255,24 @@ fun getInstalledAppsWithRoot(context: Context): List<AppInfo> {
 
 
 
+@Composable
+fun SearchField(
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    OutlinedTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = modifier.fillMaxWidth().padding(16.dp),
+        leadingIcon = {
+            Icon(Icons.Default.Search, contentDescription = "Search")
+        },
+        placeholder = { Text("Найти приложение") },
+        singleLine = true,
+        shape = MaterialTheme.shapes.medium
+    )
+}
 
 
 @Composable
@@ -244,6 +280,9 @@ fun DisplayAppList(apps: List<AppInfo>) {
     LazyColumn(
             modifier = Modifier.fillMaxSize()
     ) {
+        item {
+            SearchField(onQueryChange = {})
+        }
 
         items(apps) { app ->
 
@@ -341,7 +380,7 @@ fun AppIcon(drawable: Drawable) {
 
 // Функция для конвертации Drawable в Bitmap
 fun Drawable.toBitmap(): Bitmap {
-    val bitmap = Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
+    val bitmap = createBitmap(intrinsicWidth, intrinsicHeight)
     val canvas = android.graphics.Canvas(bitmap)
     setBounds(0, 0, canvas.width, canvas.height)
     draw(canvas)
