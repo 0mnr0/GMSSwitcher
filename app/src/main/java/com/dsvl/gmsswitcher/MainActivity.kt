@@ -1,5 +1,6 @@
 package com.dsvl.gmsswitcher
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -30,7 +31,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -38,15 +38,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CardDefaults.shape
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,14 +61,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toBitmap
 import com.dsvl.gmsswitcher.ui.theme.GMSSwitcherTheme
 
-var context: MainActivity? = null;
-var readyAppList: MutableList<AppInfo>? = null;
+var context: MainActivity? = null
+var readyAppList: MutableList<AppInfo>? = null
+var ConstantlyAllApps: MutableList<AppInfo>? = null
 val settingsKeys = listOf("ShowSystemApps", "IgnoreDamagedApps")
 val settingsTitles = listOf("Показывать системные приложения", "Игнорировать приложения с неполными данными")
 var SettingsChanged = false
@@ -93,11 +92,9 @@ fun GetBool(key: String): Boolean {
 }
 
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {}
-
 
 class MainActivity : ComponentActivity() {
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -107,11 +104,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             GMSSwitcherTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                Scaffold(modifier = Modifier.fillMaxSize()) {
                     BottomBar()
                 }
             }
@@ -121,33 +114,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SearchBarExample() {
-    var query by remember { mutableStateOf("") }
-    var isActive by remember { mutableStateOf(false) }
-
-    SearchBar(
-        query = query,
-        onQueryChange = { query = it },
-        onSearch = { isActive = false },
-        active = isActive,
-        onActiveChange = { isActive = it },
-        placeholder = { Text("Поиск...") },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Поиск") },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { query = "" }) {
-                    Icon(Icons.Default.Close, contentDescription = "Очистить")
-                }
-            }
-        }
-    ) {
-        // Сюда можно добавить результаты поиска
-        Text("Результаты поиска для: $query", modifier = Modifier.padding(16.dp))
-    }
-}
 
 @Composable
 fun BottomBar() {
@@ -178,8 +144,9 @@ fun BottomBar() {
         ) {
             if (selectedIndex == 0) {
                 val context = LocalContext.current
-                val appList by remember { mutableStateOf(getInstalledAppsWithRoot(context)) }
-                DisplayAppList(appList)
+                getInstalledAppsWithRoot(context)
+                SearchScreen()
+                //DisplayAppList(appList)
             }
             if (selectedIndex == 1) {
                 SettingsScreen()
@@ -219,13 +186,14 @@ fun getInstalledAppsWithRoot(context: Context): List<AppInfo> {
         }
 
         userApps.forEach {
-            val packageName = it.packageName;
+            val packageName = it.packageName
             val appInfo = packageManager.getApplicationInfo(packageName, 0)
             val appName = packageManager.getApplicationLabel(appInfo).toString()
             val appIcon = packageManager.getApplicationIcon(appInfo)
             apps.add(AppInfo(appName, packageName, appIcon))
         }
         if (!ShowSystemApps) {
+            ConstantlyAllApps = apps
             return apps.sortedBy { it.name }
         }
 
@@ -249,44 +217,56 @@ fun getInstalledAppsWithRoot(context: Context): List<AppInfo> {
     } catch (e: Exception) {
         e.printStackTrace()
     }
+    ConstantlyAllApps = apps
     readyAppList = apps
     return apps.sortedBy { it.name }
 }
 
 
+fun filterApps(apps: MutableList<AppInfo>?, filteredString: String): List<AppInfo> {
+    return apps?.filter { it.name.contains(filteredString, ignoreCase = true) } ?: emptyList()
+}
 
 @Composable
-fun SearchField(
-    query: String = "",
-    onQueryChange: (String) -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth().padding(16.dp),
-        leadingIcon = {
-            Icon(Icons.Default.Search, contentDescription = "Search")
-        },
-        placeholder = { Text("Найти приложение") },
-        singleLine = true,
-        shape = MaterialTheme.shapes.medium
-    )
+fun SearchScreen() {
+    var searchText by remember { mutableStateOf("") }
+
+    // Пересчёт списка при изменении searchText
+    val filteredApps by remember(searchText) {
+        mutableStateOf(filterApps(ConstantlyAllApps, searchText))
+    }
+
+    Column {
+        OutlinedTextField(
+            modifier = Modifier.padding(6.dp).clip(RoundedCornerShape(12.dp)).fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            leadingIcon = {
+                Icon(imageVector = Icons.Default.Search, contentDescription = "Поиск", modifier = Modifier.padding(0.dp))
+            },
+            value = searchText,
+            onValueChange = { newText ->
+                searchText = newText
+            },
+            label = { Text("Поиск приложений") }
+        )
+        DisplayAppList(filteredApps)
+    }
 }
+
+
+
+
+
+
+
 
 
 @Composable
 fun DisplayAppList(apps: List<AppInfo>) {
     LazyColumn(
-            modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
-        item {
-            SearchField(onQueryChange = {})
-        }
-
-        items(apps) { app ->
-
-
+        items(items = apps, key = { it.packageName }) { app ->
             var expanded by remember { mutableStateOf(false) }
 
             Card(
@@ -301,9 +281,7 @@ fun DisplayAppList(apps: List<AppInfo>) {
                 shape = RoundedCornerShape(40.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         AppIcon(app.icon)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(app.name, style = MaterialTheme.typography.bodyLarge)
@@ -321,9 +299,8 @@ fun DisplayAppList(apps: List<AppInfo>) {
                                 onClick = {
                                     val intent = Intent(context, PreferensesEditor::class.java)
                                     intent.putExtra("AppName", app.name)
-                                    intent.putExtra("AppPackage", app.packageName);
+                                    intent.putExtra("AppPackage", app.packageName)
                                     DrawableHolder.icon = app.icon
-
 
                                     val options = ActivityOptionsCompat.makeCustomAnimation(
                                         context, R.anim.slide_in_right, R.anim.slide_out_left
