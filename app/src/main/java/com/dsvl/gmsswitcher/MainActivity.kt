@@ -193,7 +193,7 @@ fun getInstalledAppsWithRoot(context: Context): List<AppInfo> {
             apps.add(AppInfo(appName, packageName, appIcon))
         }
         if (!ShowSystemApps) {
-            ConstantlyAllApps = apps
+            ConstantlyAllApps = apps.sortedBy { it.name } as MutableList<AppInfo>?
             return apps.sortedBy { it.name }
         }
 
@@ -217,7 +217,7 @@ fun getInstalledAppsWithRoot(context: Context): List<AppInfo> {
     } catch (e: Exception) {
         e.printStackTrace()
     }
-    ConstantlyAllApps = apps
+    ConstantlyAllApps = apps.sortedBy { it.name } as MutableList<AppInfo>?
     readyAppList = apps
     return apps.sortedBy { it.name }
 }
